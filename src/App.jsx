@@ -108,7 +108,7 @@ function AuthScreen({ onAuth }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: C.navy, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.gold}44`, fontSize: 24, color: C.gold, fontWeight: 700 }}>₹</div>
             <div>
-              <div style={{ color: C.ivory, fontWeight: 700, fontSize: 18 }}>Portfolio Terminal</div>
+              <div style={{ color: C.ivory, fontWeight: 700, fontSize: 18 }}>Portfolio Manager</div>
               <div style={{ color: C.gold, fontSize: 11, letterSpacing: 2, textTransform: "uppercase" }}>Multi-Demat Tracker</div>
             </div>
           </div>
@@ -405,7 +405,7 @@ function Dashboard({ session, onLogout }) {
       <header style={{ background: C.card, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 16, minHeight: 70, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 20, borderRight: `1px solid ${C.border}` }}>
           <div style={{ width: 38, height: 38, borderRadius: 10, background: C.navy, display: "flex", alignItems: "center", justifyContent: "center", color: C.gold, fontSize: 20, fontWeight: 700, border: `1px solid ${C.gold}33` }}>₹</div>
-          <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>Portfolio<br />Terminal</div>
+          <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>Portfolio<br />Manager</div>
         </div>
         {[
           { l: "Portfolio Value", v: fmtC(totCur), c: C.gold, big: true },
