@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 const SB_URL = "https://qyrqjxbhttaqjgihmzgx.supabase.co";
