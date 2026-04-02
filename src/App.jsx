@@ -1,3 +1,30 @@
+// Dhan API — requires access token
+async function fetchDhan(symbols, accessToken) {
+  if (!accessToken) return {};
+  try {
+    const out = {};
+    for (const symbol of symbols) {
+      const res = await fetch(`https://api.dhan.co/market/feed/quotes/${symbol}/NSE`, {
+        headers: {
+          'access-token': accessToken,
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const q = data?.data;
+      if (q && q.ltp != null) {
+        out[symbol] = {
+          ltp: q.ltp,
+          change: q.netChange ?? 0,
+          pct: q.percentChange ?? 0
+        };
+      }
+    }
+    return out;
+  } catch { return {}; }
+}
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
 
@@ -157,6 +184,7 @@ async function fetchAllPrices(symbols, profile) {
   const out = {};
   const remaining = [...symbols];
 
+
   // 1. Try Angel One if user has API keys
   if (profile?.angelone_api_key && profile?.angelone_client_code) {
     const ao = await fetchAngeleOne(remaining, profile.angelone_api_key, profile.angelone_client_code);
@@ -168,6 +196,13 @@ async function fetchAllPrices(symbols, profile) {
   if (remaining.length && profile?.upstox_access_token) {
     const up = await fetchUpstox(remaining, profile.upstox_access_token);
     Object.assign(out, up);
+    remaining.splice(0, remaining.length, ...remaining.filter(s => !out[s]));
+  }
+
+  // 3. Try Dhan if user has access token
+  if (remaining.length && profile?.dhan_access_token) {
+    const dh = await fetchDhan(remaining, profile.dhan_access_token);
+    Object.assign(out, dh);
     remaining.splice(0, remaining.length, ...remaining.filter(s => !out[s]));
   }
 
@@ -407,7 +442,7 @@ function SettingsPanel({ token, onClose, onLogout, isMobile }) {
 
       {/* API Keys tab */}
       {tab === "api" && <>
-        <div style={{ color:C.muted,fontSize:12,marginBottom:16,lineHeight:1.5 }}>Enter your broker API keys to enable live LTP fetching. Angel One SmartAPI is checked first, then Upstox, then Yahoo Finance.</div>
+        <div style={{ color:C.muted,fontSize:12,marginBottom:16,lineHeight:1.5 }}>Enter your broker API keys to enable live LTP fetching. Angel One SmartAPI is checked first, then Upstox, then Dhan, then Yahoo Finance.</div>
         <div style={{ background:C.cardL,borderRadius:12,padding:"14px 16px",marginBottom:14,border:`1px solid ${C.border}` }}>
           <div style={{ color:C.gold,fontWeight:700,fontSize:13,marginBottom:10 }}>🅰 Angel One SmartAPI</div>
           <Row label="API Key"><Inp placeholder="Your Angel One API Key" value={profile.angelone_api_key||""} onChange={e=>setProfile(p=>({...p,angelone_api_key:e.target.value}))} /></Row>
@@ -418,6 +453,11 @@ function SettingsPanel({ token, onClose, onLogout, isMobile }) {
           <div style={{ color:C.gold,fontWeight:700,fontSize:13,marginBottom:10 }}>⬆ Upstox API v2</div>
           <Row label="Access Token"><Inp placeholder="Upstox OAuth Access Token" value={profile.upstox_access_token||""} onChange={e=>setProfile(p=>({...p,upstox_access_token:e.target.value}))} /></Row>
           <div style={{ color:C.muted,fontSize:10,marginTop:4 }}>Get from upstox.com/developer → Login API → Access Token</div>
+        </div>
+        <div style={{ background:C.cardL,borderRadius:12,padding:"14px 16px",marginBottom:14,border:`1px solid ${C.border}` }}>
+          <div style={{ color:C.gold,fontWeight:700,fontSize:13,marginBottom:10 }}>📊 Dhan API</div>
+          <Row label="Access Token"><Inp placeholder="Dhan Access Token" value={profile.dhan_access_token||""} onChange={e=>setProfile(p=>({...p,dhan_access_token:e.target.value}))} /></Row>
+          <div style={{ color:C.muted,fontSize:10,marginTop:4 }}>Get from dhan.co/developer → API Access Token</div>
         </div>
         <div style={{ background:`${C.navy}22`,border:`1px solid ${C.navy}44`,borderRadius:9,padding:"10px 14px",marginBottom:14 }}>
           <div style={{ color:C.dim,fontSize:11 }}>Without API keys, KOSH uses Yahoo Finance + Claude AI search as fallback — prices may be 15 min delayed during market hours.</div>
