@@ -104,13 +104,48 @@ async function fetchPricesViaClaude(symbols) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514", max_tokens: 1000,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
-        system: `Return ONLY valid JSON, no text, no markdown. Format: {"SYMBOL": {"ltp": number, "change": number, "pct": number}}`,
+        system: `Return ONLY valid JSON, no text, no markdown. Format: {\"SYMBOL\": {\"ltp\": number, \"change\": number, \"pct\": number}}`,
         messages: [{ role: "user", content: `Search NSE India current stock prices for: ${symbols.slice(0, 8).join(", ")}. Return JSON only with current LTP in rupees.` }]
       })
     });
     if (!res.ok) return {};
     const data = await res.json();
     const text = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
+    const j = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+    return j ? JSON.parse(j) : {};
+  } catch { return {}; }
+}
+
+// Groq API for stock prices
+async function fetchPricesViaGroq(symbols) {
+  if (!symbols.length) return {};
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) return {};
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "llama3-70b-8192",
+        messages: [
+          {
+            role: "system",
+            content: "Return ONLY valid JSON, no text, no markdown. Format: {\"SYMBOL\": {\"ltp\": number, \"change\": number, \"pct\": number}}"
+          },
+          {
+            role: "user",
+            content: `Search NSE India current stock prices for: ${symbols.slice(0, 8).join(", ")}. Return JSON only with current LTP in rupees.`
+          }
+        ],
+        max_tokens: 1000
+      })
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    let text = data.choices?.[0]?.message?.content || "";
     const j = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
     return j ? JSON.parse(j) : {};
   } catch { return {}; }
@@ -145,11 +180,20 @@ async function fetchAllPrices(symbols, profile) {
     remaining.splice(0, remaining.length, ...remaining.filter(s => !out[s]));
   }
 
+
   // 4. Claude API fallback for anything still missing
   if (remaining.length) {
     const chunks = [];
     for (let i = 0; i < remaining.length; i += 8) chunks.push(remaining.slice(i, i + 8));
     for (const chunk of chunks) { const cd = await fetchPricesViaClaude(chunk); Object.assign(out, cd); }
+    remaining.splice(0, remaining.length, ...remaining.filter(s => !out[s]));
+  }
+
+  // 5. Groq API fallback for anything still missing
+  if (remaining.length) {
+    const chunks = [];
+    for (let i = 0; i < remaining.length; i += 8) chunks.push(remaining.slice(i, i + 8));
+    for (const chunk of chunks) { const gd = await fetchPricesViaGroq(chunk); Object.assign(out, gd); }
   }
 
   return out;
