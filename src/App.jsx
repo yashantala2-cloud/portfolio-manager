@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef, startTransition } from "react
 import * as XLSX from "xlsx";
 
 // ─── ENV (Vite) ───────────────────────────────────────────────────────────────
-const SB_URL   = import.meta.env?.VITE_SB_URL  ?? "https://qyrqjxbhttaqjgihmzgx.supabase.co";
-const SB_KEY   = import.meta.env?.VITE_SB_KEY  ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5cnFqeGJodHRhcWpnaWhtemd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2NTg5MzQsImV4cCI6MjA4NzIzNDkzNH0.cQC2Vo722Z_LY8X5an2QJqJhavjIstmzNbp2Cjo_51I";
+const SB_URL   = import.meta.env?.VITE_SB_URL  ?? "";
+const SB_KEY   = import.meta.env?.VITE_SB_KEY  ?? "";
 // Broker tokens come ONLY from env — no hardcoded fallbacks for security
 const ENV_DHAN_TOK = import.meta.env?.VITE_DHAN_ACCESS_TOKEN ?? "";
 const ENV_DHAN_CID = import.meta.env?.VITE_DHAN_CLIENT_ID    ?? "";
@@ -802,6 +802,9 @@ function Main({session,onLogout}){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}><KoshLogo size={28}/><span style={{color:C.gold,fontWeight:800,letterSpacing:1,fontSize:13}}>KOSH</span>{mktPill}</div>
           <div style={{display:"flex",gap:6}}>
+            <button onClick={doFetch} disabled={priceStatus==="loading"} title="Refresh prices" style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:7,padding:"5px 8px",fontSize:14,cursor:priceStatus==="loading"?"not-allowed":"pointer",opacity:priceStatus==="loading"?0.6:1}}>
+              {priceStatus==="loading"?"⟳":"↺"}
+            </button>
             <button onClick={()=>setPrivacy(p=>!p)} style={{background:privacy?`${C.gold}22`:"transparent",border:`1px solid ${C.border}`,color:privacy?C.gold:C.muted,borderRadius:7,padding:"5px 8px",fontSize:14,cursor:"pointer"}}>{privacy?"🙈":"👁"}</button>
             <button onClick={()=>setSettings(true)} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:7,padding:"5px 9px",fontSize:16,cursor:"pointer"}}>⚙</button>
           </div>
@@ -859,6 +862,9 @@ function Main({session,onLogout}){
         ))}
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
           {lastUpdate&&<span style={{color:C.muted,fontSize:10}}>{lastUpdate.toLocaleTimeString()}</span>}
+          <button onClick={doFetch} disabled={priceStatus==="loading"} title="Refresh prices" style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:7,padding:"5px 8px",fontSize:13,cursor:priceStatus==="loading"?"not-allowed":"pointer",opacity:priceStatus==="loading"?0.6:1}}>
+            {priceStatus==="loading"?"⟳":"↺"}
+          </button>
           <button onClick={()=>setPrivacy(p=>!p)} style={{background:privacy?`${C.gold}22`:"transparent",border:`1px solid ${privacy?C.gold:C.border}`,color:privacy?C.gold:C.muted,borderRadius:7,padding:"5px 8px",fontSize:15,cursor:"pointer"}} title="Privacy">{ privacy?"🙈":"👁"}</button>
           <button onClick={()=>setSettings(true)} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:7,padding:"5px 9px",fontSize:15,cursor:"pointer"}} title="Settings">⚙</button>
         </div>
