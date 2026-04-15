@@ -90,23 +90,22 @@ const V = {
 };
 
 // ─── LTP Fetchers ─────────────────────────────────────────────────────────────
+// NEW (uses the proxy, no CORS, correct format):
 async function fetchDhan(symbols, token, clientId) {
   if (!token || !symbols.length) return {};
   try {
-    const r = await fetch("https://api.dhan.co/v2/marketfeed/ltp", {
+    const r = await fetch("/api/dhan-ltp", {
       method: "POST",
-      headers: { "access-token": token, "client-id": clientId || "", "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ NSE_EQ: symbols }),
-      signal: AbortSignal.timeout(9000),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols, token, clientId }),
+      signal: AbortSignal.timeout(12_000),
     });
     if (!r.ok) return {};
     const d = await r.json();
-    const out = {};
-    for (const [sym, q] of Object.entries(d?.data?.NSE_EQ || {})) {
-      if (q?.last_price != null) out[sym] = { ltp: q.last_price, change: q.net_change??0, pct: q.percent_change??0 };
-    }
-    return out;
-  } catch { return {}; }
+    return d?.data || {};
+  } catch {
+    return {};
+  }
 }
 async function fetchAngelOne(symbols, apiKey, jwtToken) {
   if (!apiKey || !jwtToken || !symbols.length) return {};
