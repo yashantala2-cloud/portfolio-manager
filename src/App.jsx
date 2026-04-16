@@ -517,7 +517,7 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
       )}
     </>}
   </Wrap>);
-}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTH SCREEN
