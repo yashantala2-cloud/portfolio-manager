@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import * as XLSX from "xlsx";
 import "./App.css";
 
@@ -61,8 +61,8 @@ const dbDelete = (p,t)    => sb(p,{method:"DELETE"},t);
 const dbUpsert = (p,b,t)  => sb(p,{method:"POST",  headers:{Prefer:"return=representation,resolution=merge-duplicates"},body:JSON.stringify(b)},t);
 
 const stGet = async k => { try { const r=await window.storage.get(k); return r?JSON.parse(r.value):null; } catch { return null; } };
-const stSet = async (k,v) => { try { await window.storage.set(k,JSON.stringify(v)); } catch {} };
-const stDel = async k     => { try { await window.storage.delete(k); } catch {} };
+const stSet = async (k,v) => { try { await window.storage.set(k,JSON.stringify(v)); } catch (e) { void e; } };
+const stDel = async k     => { try { await window.storage.delete(k); } catch (e) { void e; } };
 
 // ─── Market hours IST ─────────────────────────────────────────────────────────
 const getIST       = () => new Date(Date.now()+new Date().getTimezoneOffset()*60000+19800000);
@@ -201,6 +201,19 @@ const Btn=({children,variant="gold",style:s,...p})=>{
   return<button {...p} style={{border:"none",borderRadius:9,padding:"11px 16px",fontSize:13,cursor:p.disabled?"not-allowed":"pointer",opacity:p.disabled?.5:1,fontFamily:"inherit",transition:`all ${TR}`,...vs[variant],...s}}>{children}</button>;
 };
 
+function ApiField({label,field,placeholder,hint,maskedView,setMaskedView,creds,setCreds}){
+  return(
+    <Row label={label}>
+      <div style={{position:"relative"}}>
+        <Inp type={maskedView[field]?"password":"text"} placeholder={placeholder} value={creds[field]} onChange={e=>setCreds(p=>({...p,[field]:e.target.value}))} style={{paddingRight:40}} autoComplete="off"/>
+        <button onClick={()=>setMaskedView(p=>({...p,[field]:!p[field]}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13}}>{maskedView[field]?"👁":"🙈"}</button>
+      </div>
+      {creds[field]&&maskedView[field]&&<div style={{color:C.muted,fontSize:10,marginTop:3}}>Stored: {maskToken(creds[field])}</div>}
+      {hint&&<div style={{color:C.muted,fontSize:10,marginTop:3}}>{hint}</div>}
+    </Row>
+  );
+}
+
 function SearchInput({value,onChange,results,onSelect,renderResult,placeholder}){
   return(<div style={{position:"relative"}}>
     <Inp placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)}/>
@@ -299,7 +312,7 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
       setLtpVals(initVals);
     }catch(e){setLtpMsg("Load error: "+e.message);}
     setLtpLoading(false);
-  },[uid,token]);// eslint-disable-line
+  },[uid,token,ltpLoading]);
 
   useEffect(()=>{if(tab==="ltp")loadLtpRows();},[tab]);// eslint-disable-line
 
@@ -329,15 +342,12 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
     }catch(e){setLtpMsg("Error: "+e.message);}
     setLtpLoading(false);
   };
-
   const validateProfile=()=>{
     const e={};
     try{V.phone(profile.phone);}catch(ex){e.phone=ex.message;}
     try{V.pan(profile.pan_number);}catch(ex){e.pan=ex.message;}
-    setValErr(e);
-    return Object.keys(e).length===0;
+    setValErr(e); return Object.keys(e).length===0;
   };
-
   const saveProfile=async()=>{
     if(!validateProfile())return; setLoading(true);setMsg("");
     try{await dbUpsert("/rest/v1/user_profiles",{...profile,id:uid,updated_at:new Date().toISOString()},token);setMsg("✓ Profile saved!");}
@@ -371,19 +381,11 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
   };
 
   const TABS=[{k:"profile",l:"👤 Profile"},{k:"security",l:"🔒 Security"},{k:"api",l:"⚡ API Keys"},{k:"ltp",l:"📊 Manual LTP"}];
-  const Wrap=isMobile?({children})=><Sheet title="⚙ Settings" onClose={onClose}>{children}</Sheet>:({children})=><ModalC title="⚙ Settings" onClose={onClose} maxWidth={520}>{children}</ModalC>;
-  const ApiField=({label,field,placeholder,hint})=>(
-    <Row label={label}>
-      <div style={{position:"relative"}}>
-        <Inp type={maskedView[field]?"password":"text"} placeholder={placeholder} value={creds[field]} onChange={e=>setCreds(p=>({...p,[field]:e.target.value}))} style={{paddingRight:40}} autoComplete="off"/>
-        <button onClick={()=>setMaskedView(p=>({...p,[field]:!p[field]}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13}}>{maskedView[field]?"👁":"🙈"}</button>
-      </div>
-      {creds[field]&&maskedView[field]&&<div style={{color:C.muted,fontSize:10,marginTop:3}}>Stored: {maskToken(creds[field])}</div>}
-      {hint&&<div style={{color:C.muted,fontSize:10,marginTop:3}}>{hint}</div>}
-    </Row>
-  );
+  const Wrap=isMobile?Sheet:ModalC;
+  const wrapProps=isMobile?{title:"⚙ Settings",onClose}:{title:"⚙ Settings",onClose,maxWidth:520};
+  const apiFieldProps={maskedView,setMaskedView,creds,setCreds};
 
-  return(<Wrap>
+  return(<Wrap {...wrapProps}>
     <div style={{display:"flex",gap:2,marginBottom:20,background:C.cardL,borderRadius:9,padding:3}}>
       {TABS.map(t=><button key={t.k} onClick={()=>{setTab(t.k);setMsg("");}} style={{flex:1,padding:"8px 4px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:11,background:tab===t.k?C.goldDim:"transparent",color:tab===t.k?C.gold:C.muted,fontFamily:"inherit",borderBottom:tab===t.k?`1px solid ${C.border}`:"1px solid transparent"}}>{t.l}</button>)}
     </div>
@@ -448,17 +450,17 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
       </div>
       <div style={{background:C.card,borderRadius:12,padding:"14px 16px",marginBottom:12,border:`1px solid ${C.borderL}`}}>
         <div style={{color:C.gold,fontWeight:700,fontSize:13,marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>🟢 Dhan API</div>
-        <ApiField label="Access Token" field="dhan_tok" placeholder="Dhan JWT access token" hint="From dhan.co → My Dhan → API Access"/>
-        <ApiField label="Client ID" field="dhan_cid" placeholder="Your Dhan Client ID"/>
+        <ApiField label="Access Token" field="dhan_tok" placeholder="Dhan JWT access token" hint="From dhan.co → My Dhan → API Access" {...apiFieldProps}/>
+        <ApiField label="Client ID" field="dhan_cid" placeholder="Your Dhan Client ID" {...apiFieldProps}/>
       </div>
       <div style={{background:C.card,borderRadius:12,padding:"14px 16px",marginBottom:12,border:`1px solid ${C.borderL}`}}>
         <div style={{color:C.gold,fontWeight:700,fontSize:13,marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>🅰 Angel One SmartAPI</div>
-        <ApiField label="API Key" field="ao_key" placeholder="Angel One API Key" hint="From marketapi.angelbroking.com → Create App"/>
-        <ApiField label="JWT Token" field="ao_code" placeholder="Login JWT token"/>
+        <ApiField label="API Key" field="ao_key" placeholder="Angel One API Key" hint="From marketapi.angelbroking.com → Create App" {...apiFieldProps}/>
+        <ApiField label="JWT Token" field="ao_code" placeholder="Login JWT token" {...apiFieldProps}/>
       </div>
       <div style={{background:C.card,borderRadius:12,padding:"14px 16px",marginBottom:12,border:`1px solid ${C.borderL}`}}>
         <div style={{color:C.gold,fontWeight:700,fontSize:13,marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>⬆ Upstox API v2</div>
-        <ApiField label="Access Token" field="up_tok" placeholder="Upstox OAuth Access Token" hint="From upstox.com/developer → Login API"/>
+        <ApiField label="Access Token" field="up_tok" placeholder="Upstox OAuth Access Token" hint="From upstox.com/developer → Login API" {...apiFieldProps}/>
       </div>
       {msg&&<div style={{color:msg.startsWith("✓")?C.profit:C.loss,fontSize:12,marginBottom:8}}>{msg}</div>}
       <Btn onClick={saveCreds} disabled={loading} style={{width:"100%"}}>{loading?"Encrypting & Saving…":"Save API Keys"}</Btn>
@@ -521,7 +523,7 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
       )}
     </>}
   </Wrap>);
-
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTH SCREEN
@@ -606,7 +608,7 @@ function StockForm({holding,accounts,token,onSave,onClose}){
   const uid=jwtUid(token);
   const[f,setF]=useState({account_id:holding?.account_id??accounts[0]?.id??"",symbol:holding?.symbol??"",exchange:holding?.exchange??"NSE",qty:holding?.qty??"",avg_price:holding?.avg_price??""});
   const[text,setText]=useState(holding?.symbol??"");const[res,setRes]=useState([]);
-  const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const[loading,_setLoading]=useState(false);const[err,setErr]=useState("");
   const timer=useRef(null);const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const search=q=>{clearTimeout(timer.current);if(!q){setRes([]);return;}timer.current=setTimeout(async()=>{try{setRes(await dbGet(`/rest/v1/nse_stocks?or=(symbol.ilike.*${encodeURIComponent(q)}*,company_name.ilike.*${encodeURIComponent(q)}*)&select=symbol,company_name,sector,market_cap_category&limit=8`,token)||[]);}catch{setRes([]);}},280);};
   const submit=async()=>{
@@ -633,7 +635,7 @@ function MFForm({holding,accounts,token,onSave,onClose}){
   const uid=jwtUid(token);
   const[f,setF]=useState({account_id:holding?.account_id??accounts[0]?.id??"",scheme_name:holding?.scheme_name??"",fund_house:holding?.fund_house??"",fund_type:holding?.fund_type??"Equity",units:holding?.units??"",avg_nav:holding?.avg_nav??""});
   const[text,setText]=useState(holding?.scheme_name??"");const[res,setRes]=useState([]);
-  const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const[loading,_setLoading]=useState(false);const[err,setErr]=useState("");
   const timer=useRef(null);const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const search=q=>{clearTimeout(timer.current);if(!q){setRes([]);return;}timer.current=setTimeout(async()=>{try{setRes(await dbGet(`/rest/v1/mf_schemes?scheme_name=ilike.*${encodeURIComponent(q)}*&select=scheme_name,fund_house,scheme_type&limit=8`,token)||[]);}catch{setRes([]);}},280);};
   const submit=async()=>{
@@ -661,7 +663,7 @@ function ETFForm({holding,accounts,token,onSave,onClose}){
   const uid=jwtUid(token);
   const[f,setF]=useState({account_id:holding?.account_id??accounts[0]?.id??"",symbol:holding?.symbol??"",etf_name:holding?.etf_name??"",etf_type:holding?.etf_type??"Equity",units:holding?.units??"",avg_price:holding?.avg_price??""});
   const[text,setText]=useState(holding?.symbol??"");const[res,setRes]=useState([]);
-  const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const[loading,_setLoading]=useState(false);const[err,setErr]=useState("");
   const timer=useRef(null);const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const search=q=>{clearTimeout(timer.current);if(!q){setRes([]);return;}timer.current=setTimeout(async()=>{try{setRes(await dbGet(`/rest/v1/nse_stocks?or=(symbol.ilike.*${encodeURIComponent(q)}*,company_name.ilike.*${encodeURIComponent(q)}*)&select=symbol,company_name&limit=8`,token)||[]);}catch{setRes([]);}},280);};
   const submit=async()=>{
@@ -688,7 +690,7 @@ function ETFForm({holding,accounts,token,onSave,onClose}){
 function AccForm({account,token,onSave,onClose}){
   const uid=jwtUid(token);
   const[f,setF]=useState({name:account?.name??"",broker:account?.broker??BROKERS[0],color:account?.color??ACC_COLORS[0],notes:account?.notes??""});
-  const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const[loading,_setLoading]=useState(false);const[err,setErr]=useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const submit=async()=>{
     setErr("");
@@ -758,7 +760,7 @@ export default function App(){
         if(jwtExp(s.at)>Date.now()+60000){setSession(s);setChecking(false);return;}
         if(s.rt){
           try{const r=await authRefresh(s.rt);const fresh={at:r.access_token,rt:r.refresh_token};await stSet("ks",fresh);setSession(fresh);setChecking(false);return;}
-          catch{}
+          catch(e){void e;}
         }
       }
       setChecking(false);
@@ -805,10 +807,10 @@ function Main({session,onLogout}){
   const marketOpen=isMarketOpen();
 
   const load={
-    accounts: useCallback(async()=>{try{setAccounts(await dbGet("/rest/v1/accounts?select=*&order=created_at.asc",token)||[]);}catch{}},[token]),
-    holdings: useCallback(async()=>{try{setHoldings(await dbGet("/rest/v1/holdings?select=*&order=created_at.asc",token)||[]);}catch{}},[token]),
-    mf:       useCallback(async()=>{try{setMfH(await dbGet("/rest/v1/mf_holdings?select=*&order=created_at.asc",token)||[]);}catch{}},[token]),
-    etf:      useCallback(async()=>{try{setEtfH(await dbGet("/rest/v1/etf_holdings?select=*&order=created_at.asc",token)||[]);}catch{}},[token]),
+    accounts: useCallback(async()=>{try{setAccounts(await dbGet("/rest/v1/accounts?select=*&order=created_at.asc",token)||[]);}catch(e){void e;}},[token]),
+    holdings: useCallback(async()=>{try{setHoldings(await dbGet("/rest/v1/holdings?select=*&order=created_at.asc",token)||[]);}catch(e){void e;}},[token]),
+    mf:       useCallback(async()=>{try{setMfH(await dbGet("/rest/v1/mf_holdings?select=*&order=created_at.asc",token)||[]);}catch(e){void e;}},[token]),
+    etf:      useCallback(async()=>{try{setEtfH(await dbGet("/rest/v1/etf_holdings?select=*&order=created_at.asc",token)||[]);}catch(e){void e;}},[token]),
     profile:  useCallback(async()=>{
       try{
         const r=await dbGet(`/rest/v1/user_profiles?id=eq.${jwtUid(token)}&select=*`,token);
@@ -817,15 +819,17 @@ function Main({session,onLogout}){
           const[dt,dc,ak,ac,ut]=await Promise.all([decryptVal(p.dhan_token_enc,uid),decryptVal(p.dhan_cid_enc,uid),decryptVal(p.ao_key_enc,uid),decryptVal(p.ao_code_enc,uid),decryptVal(p.up_token_enc,uid)]);
           setCreds({dhan_tok:dt,dhan_cid:dc,ao_key:ak,ao_code:ac,up_tok:ut});
         }
-      }catch{}
+      }catch(e){void e;}
     },[token]),
   };
 
-  const allSymbols=useRef([]);
-  allSymbols.current=[...new Set([...holdings.map(h=>h.symbol),...etfH.map(h=>h.symbol)])].filter(Boolean);
+  const allSymbols=useMemo(
+    ()=>[...new Set([...holdings.map(h=>h.symbol),...etfH.map(h=>h.symbol)])].filter(Boolean),
+    [holdings,etfH]
+  );
 
   const doFetch=useCallback(async()=>{
-    const syms=allSymbols.current;
+    const syms=allSymbols;
     if(!syms.length)return;
     const myId=++fetchIdRef.current;
     setPriceStatus("loading");
@@ -835,10 +839,14 @@ function Main({session,onLogout}){
       if(Object.keys(data).length){startTransition(()=>{setPrices(p=>({...p,...data}));setPriceStatus("ok");setLastUpdate(new Date());});}
       else setPriceStatus("error");
     }catch{if(myId===fetchIdRef.current)setPriceStatus("error");}
-  },[creds]);
+  },[allSymbols,creds]);
 
   useEffect(()=>{load.accounts();load.holdings();load.mf();load.etf();load.profile();},[]);// eslint-disable-line
-  useEffect(()=>{if(allSymbols.current.length)doFetch();},[holdings.length,etfH.length]);
+  useEffect(()=>{
+    if(!allSymbols.length) return;
+    const t=setTimeout(()=>{void doFetch();},0);
+    return()=>clearTimeout(t);
+  },[allSymbols,doFetch]);
   useEffect(()=>{
     clearInterval(liveRef.current);
     if(marketOpen)liveRef.current=setInterval(doFetch,15000);
@@ -1021,7 +1029,7 @@ function Main({session,onLogout}){
   ];
 
   // ─── Coming Soon page component ─────────────────────────────────────────────
-  const ComingSoon=({icon,title,sub})=>(
+  const renderComingSoon=({icon,title,sub})=>(
     <div className="kosh-cs-wrap">
       <div className="kosh-cs-icon">{icon}</div>
       <div className="kosh-cs-title">{title}</div>
@@ -1031,7 +1039,7 @@ function Main({session,onLogout}){
   );
 
   // ─── Portfolio page ──────────────────────────────────────────────────────────
-  const PortfolioPage=()=>{
+  const renderPortfolioPage=()=>{
     const cols=section==="mf"
       ?["Scheme","Account","Type","Units","Avg NAV","Invested","Current","P&L","Return",""]
       :["Company","Account",section==="etf"?"ETF Type":"Broker","Qty","Avg. Cost","LTP","Day's Chg","Invested","Current Val","P&L","Return",""];
@@ -1117,7 +1125,7 @@ function Main({session,onLogout}){
                   <tr>{cols.map(h=><th key={h}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map((h,i)=>{
+                  {filteredRows.map(h=>{
                     const acc=accounts.find(a=>a.id===h.account_id);
                     const isH=hovRow===h.id;
                     return(
@@ -1295,7 +1303,7 @@ function Main({session,onLogout}){
             </div>
             {/* Portfolio page content */}
             <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-              <PortfolioPage/>
+              {renderPortfolioPage()}
               <div className="kosh-footer">
                 <KoshLogo size={14}/>
                 <span style={{color:C.muted,fontSize:9,letterSpacing:2.5,fontFamily:"'IBM Plex Mono',monospace"}}>EXCLUSIVELY POWERED BY KOSH</span>
@@ -1304,27 +1312,21 @@ function Main({session,onLogout}){
           </div>
         )}
 
-        {page==="dashboard"&&(
-          <ComingSoon
-            icon={<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="12" height="12" rx="2.5"/><rect x="19" y="3" width="12" height="12" rx="2.5"/><rect x="3" y="19" width="12" height="12" rx="2.5"/><rect x="19" y="19" width="12" height="12" rx="2.5"/></svg>}
-            title="Dashboard"
-            sub="We're building something powerful. The full dashboard with live market data, portfolio analytics, and smart insights is on its way."
-          />
-        )}
-        {page==="trading"&&(
-          <ComingSoon
-            icon={<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><polyline points="3,25 10,14 17,19 24,8 31,12"/><line x1="31" y1="12" x2="31" y2="7"/><line x1="26" y1="7" x2="31" y2="7"/></svg>}
-            title="Trading Terminal"
-            sub="The full intraday and F&O trading terminal with live charts, order book, and market depth is under active development."
-          />
-        )}
-        {page==="analysis"&&(
-          <ComingSoon
-            icon={<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 28L10 18L17 21L24 11L31 14"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="17" cy="21" r="2" fill="currentColor" stroke="none"/><circle cx="24" cy="11" r="2" fill="currentColor" stroke="none"/></svg>}
-            title="Analysis"
-            sub="Deep portfolio diagnostics, attribution analysis, sector breakdown, and XIRR calculations are coming soon."
-          />
-        )}
+        {page==="dashboard"&&renderComingSoon({
+          icon:<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="12" height="12" rx="2.5"/><rect x="19" y="3" width="12" height="12" rx="2.5"/><rect x="3" y="19" width="12" height="12" rx="2.5"/><rect x="19" y="19" width="12" height="12" rx="2.5"/></svg>,
+          title:"Dashboard",
+          sub:"We're building something powerful. The full dashboard with live market data, portfolio analytics, and smart insights is on its way."
+        })}
+        {page==="trading"&&renderComingSoon({
+          icon:<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><polyline points="3,25 10,14 17,19 24,8 31,12"/><line x1="31" y1="12" x2="31" y2="7"/><line x1="26" y1="7" x2="31" y2="7"/></svg>,
+          title:"Trading Terminal",
+          sub:"The full intraday and F&O trading terminal with live charts, order book, and market depth is under active development."
+        })}
+        {page==="analysis"&&renderComingSoon({
+          icon:<svg viewBox="0 0 34 34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 28L10 18L17 21L24 11L31 14"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="17" cy="21" r="2" fill="currentColor" stroke="none"/><circle cx="24" cy="11" r="2" fill="currentColor" stroke="none"/></svg>,
+          title:"Analysis",
+          sub:"Deep portfolio diagnostics, attribution analysis, sector breakdown, and XIRR calculations are coming soon."
+        })}
       </div>
 
       {/* Modals & overlays */}
