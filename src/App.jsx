@@ -329,11 +329,15 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdat
     }catch(e){setLtpMsg("Error: "+e.message);}
     setLtpLoading(false);
   };
+
+  const validateProfile=()=>{
     const e={};
     try{V.phone(profile.phone);}catch(ex){e.phone=ex.message;}
     try{V.pan(profile.pan_number);}catch(ex){e.pan=ex.message;}
-    setValErr(e); return Object.keys(e).length===0;
+    setValErr(e);
+    return Object.keys(e).length===0;
   };
+
   const saveProfile=async()=>{
     if(!validateProfile())return; setLoading(true);setMsg("");
     try{await dbUpsert("/rest/v1/user_profiles",{...profile,id:uid,updated_at:new Date().toISOString()},token);setMsg("✓ Profile saved!");}
