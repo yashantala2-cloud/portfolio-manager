@@ -1,44 +1,421 @@
-/*
-  App.css — KOSH v2 Design
-  All component-level styles are handled via inline styles in App.jsx
-  using the v2 design system tokens. This file is kept for any
-  overrides or future additions.
-*/
+/* ═══════════════════════════════════════════════════════════════
+   KOSH — App.css  (exact port of kosh-v2(1).html styles)
+   ═══════════════════════════════════════════════════════════════ */
 
-/* ─── TABLE HOVER TRANSITION ─── */
-table tr {
-  transition: background 0.2s ease;
+/* ─── SIDEBAR ─── */
+.kosh-sidebar {
+  width: 72px;
+  min-height: 100vh;
+  background: #0C0D1A;
+  border-right: 1px solid rgba(187,134,252,0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
 }
+.kosh-sidebar:hover { width: 240px; }
 
-/* ─── SIDEBAR TRANSITION (hover expand) ─── */
-nav {
-  will-change: width;
-}
-
-/* ─── BUTTON FOCUS ─── */
-button:focus-visible {
-  outline: 2px solid rgba(187, 134, 252, 0.6);
-  outline-offset: 2px;
-}
-
-/* ─── DATE INPUT CALENDAR ICON (dark) ─── */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6) sepia(0.3) hue-rotate(230deg);
+.kosh-sidebar-logo {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 0 20px 24px;
+  border-bottom: 1px solid rgba(187,134,252,0.15);
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  min-height: 60px;
 }
+.kosh-logo-mark {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: #bb86fc;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 16px rgba(187,134,252,0.35);
+}
+.kosh-logo-mark svg { width: 20px; height: 20px; }
+.kosh-logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; font-weight: 700;
+  color: #bb86fc;
+  letter-spacing: 2px;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+  white-space: nowrap;
+}
+.kosh-sidebar:hover .kosh-logo-text { opacity: 1; }
 
-/* ─── SELECT ARROW (dark) ─── */
-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A5068' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px !important;
-  appearance: none;
-  -webkit-appearance: none;
+.kosh-nav-group { width: 100%; margin-top: 12px; flex: 1; }
+
+.kosh-nav-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 20px;
   cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.kosh-nav-item:hover { background: #181929; border-left-color: rgba(187,134,252,0.15); }
+.kosh-nav-item.active { background: rgba(187,134,252,0.15); border-left-color: #bb86fc; }
+.kosh-nav-item.active .kosh-nav-icon { color: #bb86fc; }
+
+.kosh-nav-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+  color: #4A5068;
+  transition: color 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-nav-item:hover .kosh-nav-icon { color: #8A8FA8; }
+
+.kosh-nav-label {
+  font-size: 13px; font-weight: 500;
+  color: #8A8FA8;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+  white-space: nowrap;
+}
+.kosh-nav-item.active .kosh-nav-label { color: #bb86fc; }
+.kosh-sidebar:hover .kosh-nav-label { opacity: 1; }
+
+.kosh-nav-badge {
+  margin-left: auto;
+  background: #FF4757; color: #fff;
+  font-size: 10px; font-weight: 600;
+  padding: 2px 6px; border-radius: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  opacity: 0; transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-sidebar:hover .kosh-nav-badge { opacity: 1; }
+
+.kosh-sidebar-bottom {
+  width: 100%; border-top: 1px solid rgba(187,134,252,0.15); padding-top: 12px;
+}
+.kosh-user-avatar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; cursor: pointer; white-space: nowrap;
+}
+.kosh-avatar-circle {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
+  background: linear-gradient(135deg, #bb86fc, #7B3FD4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #070810;
+}
+.kosh-user-info { opacity: 0; transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1); }
+.kosh-sidebar:hover .kosh-user-info { opacity: 1; }
+.kosh-user-name { font-size: 13px; font-weight: 500; color: #EDE8F5; }
+.kosh-user-sub  { font-size: 11px; color: #4A5068; font-family: 'IBM Plex Mono', monospace; }
+
+/* ─── MAIN ─── */
+.kosh-main {
+  margin-left: 72px;
+  flex: 1; display: flex; flex-direction: column;
+  min-height: 100vh;
 }
 
-/* ─── TEXTAREA RESIZE HANDLE (dark) ─── */
-textarea {
-  resize: vertical;
+/* ─── TOPBAR ─── */
+.kosh-topbar {
+  height: 64px; background: #0C0D1A;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center;
+  padding: 0 32px; gap: 20px;
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+}
+.kosh-topbar-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px; font-weight: 600; color: #EDE8F5;
+}
+.kosh-topbar-subtitle {
+  font-size: 12px; color: #4A5068;
+  font-family: 'IBM Plex Mono', monospace; margin-top: 2px;
+}
+.kosh-topbar-spacer { flex: 1; }
+.kosh-topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+.kosh-market-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 500;
+}
+.kosh-market-badge.open {
+  background: rgba(0,210,122,0.12); border: 1px solid rgba(0,210,122,0.2); color: #00D27A;
+}
+.kosh-market-badge.closed {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: #4A5068;
+}
+
+.kosh-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  animation: koshPulse 2s infinite;
+}
+.kosh-market-badge.open   .kosh-dot { background: #00D27A; }
+.kosh-market-badge.closed .kosh-dot { background: #4A5068; animation: none; }
+
+.kosh-icon-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: #101120; border: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #8A8FA8;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-icon-btn:hover { border-color: rgba(187,134,252,0.15); color: #EDE8F5; }
+.kosh-icon-btn.active {
+  background: rgba(187,134,252,0.15); border-color: rgba(187,134,252,0.15); color: #bb86fc;
+}
+
+/* ─── PAGE WRAP ─── */
+.kosh-page-content {
+  padding: 28px 32px;
+  animation: koshFadeIn 0.3s ease;
+  flex: 1; overflow-y: auto;
+}
+
+/* ─── SUMMARY GRID ─── */
+.kosh-summary-grid {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+.kosh-summary-card {
+  background: #101120; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 20px;
+  position: relative; overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1); cursor: default;
+}
+.kosh-summary-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--sc-accent, #bb86fc); border-radius: 14px 14px 0 0;
+}
+.kosh-summary-card:hover { transform: translateY(-2px); border-color: rgba(187,134,252,0.15); }
+.kosh-summary-label {
+  font-size: 11px; color: #4A5068;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.kosh-summary-value {
+  font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 500;
+  margin: 8px 0 4px; color: #EDE8F5;
+}
+.kosh-summary-change { font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+.kosh-pos { color: #00D27A; }
+.kosh-neg { color: #FF4757; }
+.kosh-dim { color: #4A5068; }
+
+/* ─── ACCOUNT MASTER ─── */
+.kosh-account-master {
+  background: #101120; border: 1px solid rgba(187,134,252,0.15);
+  border-radius: 14px; overflow: hidden; margin-bottom: 24px;
+}
+.kosh-account-master-header {
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(187,134,252,0.08), transparent);
+  border-bottom: 1px solid rgba(187,134,252,0.15);
+  display: flex; align-items: center; gap: 16px; cursor: pointer;
+  transition: background 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-account-master-header:hover {
+  background: linear-gradient(135deg, rgba(187,134,252,0.12), transparent);
+}
+.kosh-master-tag {
+  padding: 3px 10px; border-radius: 20px;
+  background: rgba(187,134,252,0.15); border: 1px solid rgba(187,134,252,0.15);
+  font-size: 10px; font-weight: 600; color: #bb86fc;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: 1px;
+}
+.kosh-account-name  { font-size: 15px; font-weight: 600; flex: 1; color: #EDE8F5; }
+.kosh-account-value { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 500; }
+.kosh-chevron { color: #4A5068; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+.kosh-chevron.open { transform: rotate(180deg); }
+
+.kosh-sub-accounts {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
+}
+.kosh-sub-account {
+  padding: 18px 24px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer; transition: background 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-sub-account:hover { background: #181929; }
+.kosh-sub-account-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.kosh-broker-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace;
+}
+.bt-dhan    { background: rgba(78,158,255,0.15); color: #4E9EFF; }
+.bt-angel   { background: rgba(255,71,87,0.15);  color: #FF4757; }
+.bt-upstox  { background: rgba(0,210,122,0.15);  color: #00D27A; }
+.bt-zerodha { background: rgba(187,134,252,0.15);color: #bb86fc; }
+.bt-generic { background: rgba(187,134,252,0.1); color: #bb86fc; }
+
+.kosh-sub-val {
+  font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 500; color: #EDE8F5;
+}
+.kosh-sub-stats { display: flex; gap: 16px; margin-top: 8px; }
+.kosh-sub-stat  { font-size: 11px; color: #4A5068; font-family: 'IBM Plex Mono', monospace; }
+.kosh-sub-stat span { color: #EDE8F5; }
+
+/* ─── CARD ─── */
+.kosh-card {
+  background: #101120; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 24px;
+  transition: border-color 0.3s cubic-bezier(0.4,0,0.2,1);
+  margin-bottom: 20px;
+}
+.kosh-card:hover { border-color: rgba(187,134,252,0.15); }
+
+/* ─── SECTION HEADER ─── */
+.kosh-section-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.kosh-section-title {
+  font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; color: #EDE8F5;
+}
+.kosh-section-action {
+  font-size: 12px; color: #bb86fc; cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+  background: none; border: none;
+}
+.kosh-section-action:hover { opacity: 0.7; }
+
+/* ─── TAB ROW ─── */
+.kosh-tab-row { display: flex; gap: 4px; margin: 0; }
+.kosh-tab {
+  padding: 7px 16px; border-radius: 8px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  color: #4A5068; background: transparent; border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1); font-family: inherit;
+}
+.kosh-tab.active { background: rgba(187,134,252,0.15); border-color: rgba(187,134,252,0.15); color: #bb86fc; }
+.kosh-tab:hover:not(.active) { color: #EDE8F5; background: #181929; }
+
+/* ─── HOLDINGS TABLE ─── */
+.kosh-holdings-table { width: 100%; border-collapse: collapse; }
+.kosh-holdings-table th {
+  text-align: left; padding: 10px 16px;
+  font-size: 10px; font-weight: 600; color: #4A5068;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.kosh-holdings-table td {
+  padding: 12px 16px; font-size: 13px; color: #EDE8F5;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-holdings-table tr:last-child td { border-bottom: none; }
+.kosh-holdings-table tbody tr:hover td { background: #181929; }
+.kosh-stock-name   { font-weight: 500; color: #EDE8F5; }
+.kosh-stock-ticker { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #bb86fc; }
+.kosh-stock-exch   { font-size: 10px; color: #4A5068; margin-left: 4px; }
+.kosh-td-mono      { font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.kosh-pnl-bar      { height: 3px; border-radius: 2px; margin-top: 4px; background: #00D27A; }
+.kosh-pnl-bar.neg  { background: #FF4757; }
+.kosh-tfoot-td     { background: #070810; border-top: 2px solid rgba(187,134,252,0.15); }
+
+/* ─── PORTFOLIO BODY LAYOUT ─── */
+.kosh-portfolio-body {
+  display: flex; flex: 1; overflow: hidden;
+}
+.kosh-acc-aside {
+  width: 180px; background: #0C0D1A;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column;
+  overflow: hidden; flex-shrink: 0;
+}
+.kosh-acc-all-row {
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  border-left: 3px solid transparent;
+}
+.kosh-acc-all-row.active {
+  border-left-color: #bb86fc; background: rgba(187,134,252,0.15);
+}
+.kosh-acc-item {
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  border-left: 3px solid transparent;
+}
+.kosh-acc-item:hover { background: #181929; }
+
+/* ─── SECTION TABS BAR ─── */
+.kosh-stabs {
+  background: #0C0D1A; border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; padding: 0 20px; gap: 2px; flex-shrink: 0;
+}
+.kosh-stab {
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: #4A5068; padding: 13px 14px;
+  cursor: pointer; font-size: 12px; font-weight: 400;
+  white-space: nowrap; font-family: 'IBM Plex Mono', monospace;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.kosh-stab.active { border-bottom-color: #bb86fc; color: #bb86fc; font-weight: 700; }
+.kosh-stab:hover:not(.active) { color: #8A8FA8; }
+
+/* ─── FOOTER ─── */
+.kosh-footer {
+  padding: 6px 18px; border-top: 1px solid rgba(255,255,255,0.06);
+  background: #0C0D1A;
+  display: flex; justify-content: center; align-items: center;
+  gap: 6px; flex-shrink: 0;
+}
+
+/* ─── COMING SOON ─── */
+.kosh-cs-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100vh - 64px); gap: 20px; text-align: center; padding: 40px;
+}
+.kosh-cs-icon {
+  width: 72px; height: 72px; border-radius: 20px;
+  background: rgba(187,134,252,0.15); border: 1px solid rgba(187,134,252,0.15);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px; box-shadow: 0 0 32px rgba(187,134,252,0.12);
+}
+.kosh-cs-icon svg { width: 34px; height: 34px; color: #bb86fc; opacity: 0.85; }
+.kosh-cs-title {
+  font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700;
+  color: #EDE8F5; letter-spacing: -0.3px;
+}
+.kosh-cs-sub { font-size: 14px; color: #4A5068; max-width: 340px; line-height: 1.6; }
+.kosh-cs-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 18px; background: rgba(187,134,252,0.15);
+  border: 1px solid rgba(187,134,252,0.15); border-radius: 20px;
+  font-size: 11px; font-weight: 600; color: #bb86fc;
+  letter-spacing: 1px; text-transform: uppercase; margin-top: 4px;
+}
+.kosh-cs-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #bb86fc; animation: koshPulse 2s infinite;
+}
+
+/* ─── ANIMATIONS ─── */
+@keyframes koshPulse   { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+@keyframes koshFadeIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes koshSpin    { to { transform:rotate(360deg); } }
+@keyframes koshTicker  { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+
+/* ─── THIN SCROLLBAR (inside main) ─── */
+.kosh-main ::-webkit-scrollbar { width: 4px; }
+.kosh-main ::-webkit-scrollbar-track { background: transparent; }
+.kosh-main ::-webkit-scrollbar-thumb { background: rgba(187,134,252,0.2); border-radius: 2px; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1200px) {
+  .kosh-summary-grid { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 640px) {
+  .kosh-page-content { padding: 16px; }
+  .kosh-topbar { padding: 0 16px; }
+  .kosh-summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kosh-summary-value { font-size: 16px; }
+  .kosh-sub-accounts { grid-template-columns: 1fr; }
 }
