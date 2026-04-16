@@ -243,7 +243,7 @@ function ModalC({title,subtitle,onClose,children,maxWidth=460}){
 // ═══════════════════════════════════════════════════════════════════════════════
 // SETTINGS PANEL
 // ═══════════════════════════════════════════════════════════════════════════════
-function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange}){
+function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange,onLtpUpdate}){
   const uid=jwtUid(token);
   const[tab,setTab]=useState("profile");
   const[profile,setProfile]=useState({});
@@ -252,6 +252,12 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange}){
   const[loading,setLoading]=useState(false);const[msg,setMsg]=useState("");
   const[newPwd,setNewPwd]=useState("");const[newPwd2,setNewPwd2]=useState("");const[showPwd,setShowPwd]=useState(false);
   const[bioAvail,setBioAvail]=useState(false);const[valErr,setValErr]=useState({});
+  // ── Manual LTP tab state ──
+  const[ltpRows,setLtpRows]=useState([]);   // [{symbol,exchange,company_name,storedLtp}]
+  const[ltpVals,setLtpVals]=useState({});   // {symbol: "string input"}
+  const[ltpLoading,setLtpLoading]=useState(false);
+  const[ltpMsg,setLtpMsg]=useState("");
+  const[ltpSearch,setLtpSearch]=useState("");
 
   useEffect(()=>{
     dbGet(`/rest/v1/user_profiles?id=eq.${uid}&select=*`,token).then(async r=>{
@@ -266,7 +272,63 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange}){
       window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(setBioAvail).catch(()=>{});
   },[uid]);// eslint-disable-line
 
-  const validateProfile=()=>{
+  const loadLtpRows=useCallback(async()=>{
+    if(ltpLoading)return;
+    setLtpLoading(true);setLtpMsg("");
+    try{
+      // fetch all user stock + ETF holdings
+      const[stH,etH]=await Promise.all([
+        dbGet(`/rest/v1/holdings?user_id=eq.${uid}&select=symbol,exchange`,token).catch(()=>[]),
+        dbGet(`/rest/v1/etf_holdings?user_id=eq.${uid}&select=symbol,exchange`,token).catch(()=>[]),
+      ]);
+      const unique=Object.values([...(stH||[]),...(etH||[])].reduce((acc,h)=>{if(h.symbol)acc[h.symbol]=h;return acc},{}));
+      if(!unique.length){setLtpRows([]);setLtpLoading(false);return;}
+      // fetch stored LTPs from nse_stocks + bse_stocks
+      const nseSym=unique.filter(h=>h.exchange!=="BSE").map(h=>h.symbol);
+      const bseSym=unique.filter(h=>h.exchange==="BSE").map(h=>h.symbol);
+      const[nseData,bseData]=await Promise.all([
+        nseSym.length?dbGet(`/rest/v1/nse_stocks?symbol=in.(${nseSym.map(s=>`"${s}"`).join(",")})&select=symbol,company_name,ltp`,token).catch(()=>[]):[],
+        bseSym.length?dbGet(`/rest/v1/bse_stocks?symbol=in.(${bseSym.map(s=>`"${s}"`).join(",")})&select=symbol,company_name,ltp`,token).catch(()=>[]):[],
+      ]);
+      const ltpMap={};
+      [...(nseData||[]),...(bseData||[])].forEach(r=>{if(r.symbol)ltpMap[r.symbol]={ltp:r.ltp,company:r.company_name};});
+      const rows=unique.map(h=>({symbol:h.symbol,exchange:h.exchange||"NSE",company_name:ltpMap[h.symbol]?.company||"",storedLtp:ltpMap[h.symbol]?.ltp??null}));
+      rows.sort((a,b)=>a.symbol.localeCompare(b.symbol));
+      setLtpRows(rows);
+      const initVals={};rows.forEach(r=>{initVals[r.symbol]=r.storedLtp!=null?String(r.storedLtp):"";});
+      setLtpVals(initVals);
+    }catch(e){setLtpMsg("Load error: "+e.message);}
+    setLtpLoading(false);
+  },[uid,token]);// eslint-disable-line
+
+  useEffect(()=>{if(tab==="ltp")loadLtpRows();},[tab]);// eslint-disable-line
+
+  const saveLtps=async()=>{
+    setLtpLoading(true);setLtpMsg("");
+    const nseUpdates=[];const bseUpdates=[];
+    ltpRows.forEach(r=>{
+      const raw=ltpVals[r.symbol]?.trim();
+      if(!raw)return;
+      const val=parseFloat(raw);
+      if(!Number.isFinite(val)||val<=0)return;
+      const rec={symbol:r.symbol,ltp:val,data_updated_at:new Date().toISOString()};
+      if(r.exchange==="BSE") bseUpdates.push({...rec,company_name:r.company_name||r.symbol});
+      else nseUpdates.push(rec);
+    });
+    try{
+      const ops=[];
+      if(nseUpdates.length) ops.push(dbUpsert("/rest/v1/nse_stocks",nseUpdates,token));
+      if(bseUpdates.length) ops.push(dbUpsert("/rest/v1/bse_stocks",bseUpdates,token));
+      await Promise.all(ops);
+      // merge into parent prices state
+      const merged={};
+      [...nseUpdates,...bseUpdates].forEach(r=>{merged[r.symbol]={ltp:r.ltp,change:0,pct:0};});
+      if(Object.keys(merged).length) onLtpUpdate?.(merged);
+      setLtpMsg(`✓ Saved ${nseUpdates.length+bseUpdates.length} LTP(s)!`);
+      loadLtpRows();
+    }catch(e){setLtpMsg("Error: "+e.message);}
+    setLtpLoading(false);
+  };
     const e={};
     try{V.phone(profile.phone);}catch(ex){e.phone=ex.message;}
     try{V.pan(profile.pan_number);}catch(ex){e.pan=ex.message;}
@@ -304,7 +366,7 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange}){
     setProfile(p=>({...p,biometric_enabled:false}));await stDel("bio_enabled");setMsg("✓ Disabled");
   };
 
-  const TABS=[{k:"profile",l:"👤 Profile"},{k:"security",l:"🔒 Security"},{k:"api",l:"⚡ API Keys"}];
+  const TABS=[{k:"profile",l:"👤 Profile"},{k:"security",l:"🔒 Security"},{k:"api",l:"⚡ API Keys"},{k:"ltp",l:"📊 Manual LTP"}];
   const Wrap=isMobile?({children})=><Sheet title="⚙ Settings" onClose={onClose}>{children}</Sheet>:({children})=><ModalC title="⚙ Settings" onClose={onClose} maxWidth={520}>{children}</ModalC>;
   const ApiField=({label,field,placeholder,hint})=>(
     <Row label={label}>
@@ -396,6 +458,63 @@ function SettingsPanel({token,onClose,onLogout,isMobile,onCredsChange}){
       </div>
       {msg&&<div style={{color:msg.startsWith("✓")?C.profit:C.loss,fontSize:12,marginBottom:8}}>{msg}</div>}
       <Btn onClick={saveCreds} disabled={loading} style={{width:"100%"}}>{loading?"Encrypting & Saving…":"Save API Keys"}</Btn>
+    </>}
+
+    {tab==="ltp"&&<>
+      <div style={{background:C.goldDim,border:`1px solid ${C.border}`,borderRadius:9,padding:"10px 14px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
+        <span style={{fontSize:16}}>📌</span>
+        <div style={{color:C.dim,fontSize:11,lineHeight:1.6,fontFamily:"'IBM Plex Mono',monospace"}}>
+          Enter live prices manually when auto-fetch is unavailable. Values are saved to your stock database and applied instantly to portfolio calculations.
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+        <div style={{position:"relative",flex:1}}>
+          <Inp placeholder="🔍  Filter symbol…" value={ltpSearch} onChange={e=>setLtpSearch(e.target.value)} style={{paddingLeft:12}}/>
+        </div>
+        <button onClick={loadLtpRows} disabled={ltpLoading} title="Reload" style={{background:C.card,border:`1px solid ${C.borderL}`,color:C.gold,borderRadius:8,padding:"10px 12px",cursor:"pointer",fontSize:14,flexShrink:0}}>↺</button>
+      </div>
+      {ltpLoading&&!ltpRows.length?(
+        <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontFamily:"'IBM Plex Mono',monospace",fontSize:12}}>Loading holdings…</div>
+      ):ltpRows.length===0?(
+        <div style={{textAlign:"center",padding:"30px 0",color:C.muted}}>
+          <div style={{fontSize:28,marginBottom:8}}>📭</div>
+          <div style={{fontSize:12,fontFamily:"'IBM Plex Mono',monospace"}}>No holdings found. Add stocks first.</div>
+        </div>
+      ):(
+        <>
+          <div style={{maxHeight:340,overflowY:"auto",borderRadius:10,border:`1px solid ${C.borderL}`,marginBottom:12}}>
+            {ltpRows.filter(r=>!ltpSearch||r.symbol.toLowerCase().includes(ltpSearch.toLowerCase())||(r.company_name||"").toLowerCase().includes(ltpSearch.toLowerCase())).map((r,i,arr)=>(
+              <div key={r.symbol} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:8,alignItems:"center",padding:"9px 12px",borderBottom:i<arr.length-1?`1px solid ${C.borderL}`:"none",background:i%2===0?C.card:C.surface}}>
+                <div>
+                  <div style={{color:C.gold,fontWeight:700,fontSize:12,fontFamily:"'IBM Plex Mono',monospace"}}>{r.symbol}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:1}}>
+                    <span style={{color:C.muted,fontSize:9,letterSpacing:1,fontFamily:"'IBM Plex Mono',monospace",background:r.exchange==="BSE"?C.blueDim:C.goldDim,padding:"1px 5px",borderRadius:4}}>{r.exchange}</span>
+                    {r.company_name&&<span style={{color:C.dim,fontSize:9,fontFamily:"'IBM Plex Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:140}}>{r.company_name}</span>}
+                  </div>
+                </div>
+                <div style={{color:r.storedLtp!=null?C.dim:C.muted,fontSize:10,fontFamily:"'IBM Plex Mono',monospace",textAlign:"right",minWidth:55}}>
+                  {r.storedLtp!=null?`₹${r.storedLtp}`:"no LTP"}
+                </div>
+                <div style={{position:"relative",width:90}}>
+                  <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted,fontSize:11,fontFamily:"'IBM Plex Mono',monospace",pointerEvents:"none"}}>₹</span>
+                  <input
+                    type="number" step="0.05" min="0.01"
+                    placeholder="0.00"
+                    value={ltpVals[r.symbol]??""}
+                    onChange={e=>setLtpVals(p=>({...p,[r.symbol]:e.target.value}))}
+                    style={{...IS,width:"100%",boxSizing:"border-box",paddingLeft:20,paddingRight:4,fontSize:12,height:32,fontFamily:"'IBM Plex Mono',monospace"}}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {ltpMsg&&<div style={{color:ltpMsg.startsWith("✓")?C.profit:C.loss,fontSize:12,marginBottom:8,fontFamily:"'IBM Plex Mono',monospace"}}>{ltpMsg}</div>}
+          <div style={{display:"flex",gap:8}}>
+            <Btn variant="ghost" style={{flex:1}} onClick={()=>{const cleared={};ltpRows.forEach(r=>{cleared[r.symbol]="";});setLtpVals(cleared);setLtpMsg("");}}>Clear All</Btn>
+            <Btn style={{flex:2}} onClick={saveLtps} disabled={ltpLoading}>{ltpLoading?"Saving…":"💾 Save LTPs"}</Btn>
+          </div>
+        </>
+      )}
     </>}
   </Wrap>);
 }
@@ -849,7 +968,7 @@ function Main({session,onLogout}){
         </div>
         <button onClick={()=>openModal(section)} style={{position:"fixed",bottom:20,right:16,width:52,height:52,borderRadius:"50%",background:C.gold,border:"none",color:"#070810",fontSize:26,fontWeight:700,cursor:"pointer",boxShadow:`0 4px 24px rgba(187,134,252,0.5)`,zIndex:10}}>+</button>
         {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:C.surface,border:`1px solid ${C.border}`,color:C.white,borderRadius:10,padding:"9px 18px",fontSize:13,zIndex:300,whiteSpace:"nowrap",fontFamily:"'IBM Plex Mono',monospace"}}>{toast}</div>}
-        {settingsOpen&&<SettingsPanel token={token} onClose={()=>setSettings(false)} onLogout={onLogout} isMobile onCredsChange={setCreds}/>}
+        {settingsOpen&&<SettingsPanel token={token} onClose={()=>setSettings(false)} onLogout={onLogout} isMobile onCredsChange={setCreds} onLtpUpdate={mp=>setPrices(p=>({...p,...mp}))}/>}
         {modal==="stocks" &&<Sheet title="📈 Add Stock"       subtitle="400+ NSE stocks"  onClose={closeModal}><StockForm  holding={editItem} accounts={accounts} token={token} onSave={afterSave(load.holdings)} onClose={closeModal}/></Sheet>}
         {modal==="mf"     &&<Sheet title="🏦 Add Mutual Fund" subtitle="72+ MF schemes"   onClose={closeModal}><MFForm     holding={editItem} accounts={accounts} token={token} onSave={afterSave(load.mf)}       onClose={closeModal}/></Sheet>}
         {modal==="etf"    &&<Sheet title="🔷 Add ETF"         subtitle="50+ ETFs"         onClose={closeModal}><ETFForm    holding={editItem} accounts={accounts} token={token} onSave={afterSave(load.etf)}      onClose={closeModal}/></Sheet>}
@@ -1205,7 +1324,7 @@ function Main({session,onLogout}){
       </div>
 
       {/* Modals & overlays */}
-      {settingsOpen&&<SettingsPanel token={token} onClose={()=>{setSettings(false);load.profile();}} onLogout={onLogout} isMobile={false} onCredsChange={setCreds}/>}
+      {settingsOpen&&<SettingsPanel token={token} onClose={()=>{setSettings(false);load.profile();}} onLogout={onLogout} isMobile={false} onCredsChange={setCreds} onLtpUpdate={mp=>setPrices(p=>({...p,...mp}))}/>}
       {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:C.surface,border:`1px solid ${C.border}`,color:C.white,borderRadius:10,padding:"10px 22px",fontSize:13,zIndex:500,whiteSpace:"nowrap",boxShadow:"0 8px 32px rgba(0,0,0,.7)",fontFamily:"'IBM Plex Mono',monospace"}}>{toast}</div>}
       {modal==="stocks" &&<ModalC title="📈 Add Stock"        subtitle="400+ NSE stocks" onClose={closeModal}><StockForm  holding={editItem} accounts={accounts} token={token} onSave={afterSave(load.holdings)} onClose={closeModal}/></ModalC>}
       {modal==="mf"     &&<ModalC title="🏦 Add Mutual Fund"  subtitle="72+ MF schemes"  onClose={closeModal}><MFForm     holding={editItem} accounts={accounts} token={token} onSave={afterSave(load.mf)}       onClose={closeModal}/></ModalC>}
